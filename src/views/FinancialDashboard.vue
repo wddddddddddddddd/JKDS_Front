@@ -734,7 +734,7 @@ export default {
 
 }
 
-.message-input {}
+/* .message-input {} */
 
 .parent-container {
   display: flex;

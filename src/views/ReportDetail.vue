@@ -535,7 +535,7 @@ body {
 
 }
 
-.message-input {}
+/* .message-input {} */
 
 .parent-container {
   display: flex;
