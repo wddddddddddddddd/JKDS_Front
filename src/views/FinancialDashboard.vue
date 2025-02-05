@@ -1,16 +1,64 @@
 <template>
   <div class="layout-demo">
     <a-layout>
-      <div class="headers">
-        <TopNavbar />
+      <div class="layout-header">
+        <div class="avatar-nav">
+          <img class="generalrobot-icon" alt="" src="/logo_blue.png" @click="this.$router.push('/')">
+          <b class="b">财报智析</b>
+          <div class="input-container-headers">
+            <input v-model="userInput" type="text" class="input-field" placeholder="请上传图片、文件或者输入想要了解的问题" />
+            <div class="addafterParent">
+              <div class="addafter">
+                <icon-file-image :style="{ fontSize: '22px', color: 'black' }" @click="handleClick" />
+                <a-modal :visible="visible" @ok="handleOk" @cancel="handleCancel">
+                  <template #title>
+                    上传文件
+                  </template>
+                  <div>
+                    <a-upload :limit="1" draggable :custom-request="customRequest" />
+                  </div>
+                </a-modal>
+              </div>
+              <div class="addafter">
+                <div class="icon-wrapper" @click="sendTextToFlask">
+                  <icon-send :style="{ fontSize: '22px', color: 'black' }" />
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="gen-yanbao">
+            <div class="actions">
+              <button @click="toggleBatchMode">
+                {{ isBatchSelecting ? '取消批量选择' : '批量选择' }}
+              </button>
+              <button v-if="isBatchSelecting" @click="generateReport">生成研报</button>
+            </div>
+          </div>
+          <a-space size="large">
+            <a-avatar class="user-avatar">
+              <img alt="avatar" src="/Avatar.png" />
+            </a-avatar>
+          </a-space>
+        </div>
+        <div class="content-headers">
+          <div class="menu-demo" style="width: 100%; display: flex;">
+            <a-menu mode="horizontal" :default-selected-keys="['1']" style="display: flex;">
+              <a-menu-item v-for="(route, index) in routes" :key="index" :to="route.path">
+                {{ route.label }}
+              </a-menu-item>
+            </a-menu>
+          </div>
+        </div>
       </div>
       <a-layout>
         <a-layout-content>
           <div class="card-container">
             <!-- 使用 v-for 循环渲染所有卡片，并设置逐个显示的延迟 -->
-            <StatisticCard v-for="(card, index) in cards" :key="index" :title="card.caption"
+            <StatisticCard v-for="(card, index) in cardStore.cards" :key="index" :title="card.caption"
               :imgSrc="`http://127.0.0.1:5000/static/yanbao_crop_images/${card.save_figure_path}`"
-              :tagList="card.tag_list" :style="{ animationDelay: `${index * 0.2}s` }" @click="goToDetail(card)" />
+              :tagList="card.tag_list" :style="{ animationDelay: `${index * 0.2}s` }"
+              :isSelected="cardStore.selectedCards.includes(index)"
+              @click="isBatchSelecting ? toggleSelection(index) : goToDetail(card)" />
           </div>
         </a-layout-content>
         <!--                <a-layout-sider :width="300" collapsed-width=0 hide-trigger collapsible :collapsed="collapsed"-->
@@ -106,10 +154,12 @@ import {
   IconCaretLeft,
   IconShareInternal,
 } from '@arco-design/web-vue/es/icon';
+import { IconFileImage, IconFolderAdd, IconPlusCircle, IconSend } from '@arco-design/web-vue/es/icon';
 import { h, ref } from "vue";
 import axios from 'axios';
 import { useCardsStore } from '@/store/cardsStore';
 import { useRouter } from 'vue-router';
+import IconWrapper from '../components/IconPicture.vue'
 
 export default {
   name: 'FinancialDashBoard',
@@ -126,10 +176,83 @@ export default {
     LeftRole,
     RightRole,
     serviceAvatarURL,
-    visitorAvatarURL
+    visitorAvatarURL,
+    IconWrapper,
+    IconFileImage,
+    IconFolderAdd,
+    IconPlusCircle,
+    IconSend,
+    IconWrapper,
   },
   data() {
     return {
+      //headers-data
+      visible: false,
+      file: null,
+      userInput: '', // 用于绑定文本域的内容
+      routes: [
+        {
+          path: '/FinancialDashBoard',
+          label: '全部'
+        },
+        {
+          path: '/',
+          label: '信息科技'
+        },
+        {
+          path: '/channel',
+          label: '大消费',
+        },
+        {
+          path: '/news',
+          label: '生命健康'
+        },
+        {
+          path: '/news',
+          label: '传媒娱乐'
+        },
+        {
+          path: '/news',
+          label: '先进制造'
+        },
+        {
+          path: '/news',
+          label: '地产金融'
+        },
+        {
+          path: '/news',
+          label: '传统行业'
+        },
+        {
+          path: '/news',
+          label: '电子科技'
+        },
+        {
+          path: '/news',
+          label: '机械制造'
+        },
+        {
+          path: '/news',
+          label: '汽车制造'
+        },
+        {
+          path: '/news',
+          label: '传统能源'
+        },
+        {
+          path: '/news',
+          label: '新能源'
+        },
+        {
+          path: '/news',
+          label: '航天航空'
+        },
+        {
+          path: '/news',
+          label: '高端消费'
+        },
+      ],
+      // end
       baseURL: 'http://127.0.0.1:5000', // Flask 服务地址
       messages: [], // 保存流式返回的数据
       eventSource: null, // SSE 实例
@@ -152,7 +275,6 @@ export default {
     }
   },
   watch: {
-
     quickMenuVisible(value) {
       if (value) {
         document.body.addEventListener("click", this.closeMenu);
@@ -176,22 +298,53 @@ export default {
       collapsed.value = !collapsed.value;
       isSidebarHidden.value = !isSidebarHidden.value; // 切换 sidebar 是否隐藏
     };
-
-    const cardsStore = useCardsStore(); // 获取 Store 实例
     const router = useRouter();
+
+    // 批量选择处理逻辑
+    const cardStore = useCardsStore(); // Pinia store
+    const isBatchSelecting = ref(false); // 控制批量选择模式
+
+    // 切换批量选择模式
+    const toggleBatchMode = () => {
+      isBatchSelecting.value = !isBatchSelecting.value;
+      console.log(isBatchSelecting.value)
+      if (!isBatchSelecting.value) {
+        cardStore.clearSelection(); // 退出批量选择时清空选中状态
+      }
+    };
+
+    // 切换选中状态
+    const toggleSelection = (index) => {
+      cardStore.toggleCardSelection(index);
+    };
+
+    // 跳转到详情页
     const goToDetail = (card) => {
-      cardsStore.setCurrentCard(card); // 设置当前选中的卡片
+      cardStore.setCurrentCard(card); // 设置当前选中的卡片
       // router.push({ name: '/ReportDetail' }); // 跳转到详情页
       router.push('/ReportDetail/TextAnalyzer');
     };
 
+    // 生成研报
+    const generateReport = () => {
+      if (cardStore.selectedCards.length === 0) {
+        alert('请选择至少一个卡片！');
+        return;
+      }
+      router.push({ name: 'CardsSelected' });
+    };
     return {
       collapsed,
       shareIcon,
       onCollapse,
       isSidebarHidden,
-      cards: cardsStore.cards,
+      // cards: cardsStore.cards,
+      cardStore,
+      isBatchSelecting,
+      toggleBatchMode,
+      toggleSelection,
       goToDetail,
+      generateReport,
     };
   },
   // mounted() {
@@ -306,6 +459,174 @@ export default {
 
 
 <style scoped>
+@font-face {
+  font-family: 'ShouhuFont';
+  src: url('/360shouhuType-Bold.otf') format('opentype');
+}
+
+.layout-header {
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
+  color: var(--color-white);
+  font-size: 16px;
+  font-stretch: condensed;
+  text-align: center;
+  height: 98px;
+  background: url(/src/assets/icons/image_top.png) no-repeat center bottom;
+  background-size: 100% 500%;
+  /* 通过增大背景图的尺寸，截取底部 20% */
+}
+
+.generalrobot-icon {
+  width: 35px;
+  height: 35px;
+  border-radius: 10cm;
+  margin-right: 10px;
+}
+
+.avatar-nav {
+  border-radius: 2.25px;
+  position: relative;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.b {
+  font-size: 30px;
+  line-height: 13.5px;
+  font-family: 'ShouhuFont', monospace !important;
+  color: #fff;
+}
+
+.input-container-headers {
+  display: flex;
+  align-items: center;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 5px;
+  width: 400px;
+  margin-left: 40px;
+  font-size: 12px;
+}
+
+.input-field {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 10px;
+}
+
+.button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 5px;
+}
+
+.button img {
+  width: 20px;
+  height: 20px;
+  filter: brightness(0) saturate(100%);
+  /* Makes SVG icons black */
+}
+
+.user-avatar {
+  /* position: fixed !important; */
+  position: absolute;
+  right: 20px;
+}
+
+
+.content-headers {
+  display: flex;
+  width: 100%;
+  position: relative;
+  border-bottom: 1px solid #e5e6eb;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: flex-start;
+  text-align: left;
+  font-size: 16px;
+  color: #4e5969;
+  font-family: 'PingFang SC';
+}
+
+.menu-demo {
+  width: 100%;
+  display: flex;
+}
+
+.addafterParent {
+  /* position: absolute; */
+  display: flex;
+}
+
+
+.addafter {
+  width: 22px;
+  position: relative;
+  height: 22px;
+}
+
+.addafter:first-child {
+  margin-left: 8px;
+}
+
+.addafter:last-child {
+  margin-left: 8px;
+}
+
+.icon-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /* 可根据需求调整 */
+  border-radius: 25%;
+  /* 圆形背景 */
+  transition: background-color 0.3s;
+  /* 平滑过渡效果 */
+}
+
+.icon-wrapper:hover,
+.icon-wrapper:focus,
+.addafter:hover,
+.addafter:focus {
+  background-color: skyblue;
+  /* 设置天蓝色背景 */
+  cursor: pointer;
+  /* 鼠标悬停效果 */
+}
+
+/* 点击效果：微微缩小 */
+.icon-wrapper:active {
+  transform: scale(0.95);
+  /* 点击时缩小 */
+  background-color: #a0c4ff;
+  /* 点击时的背景色 */
+}
+
+/* 批量选择 */
+.actions {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 16px;
+}
+
+.actions button {
+  margin-right: 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  background-color: #1e90ff;
+  color: white;
+  cursor: pointer;
+}
+
 .collapsedStyle {
   position: fixed;
   top: 100px;

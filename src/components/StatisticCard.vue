@@ -1,11 +1,12 @@
 <template>
   <transition name="fade" @before-enter="beforeEnter" @enter="enter" @leave="leave">
-    <div class="statistic-card">
+    <div class="statistic-card" :class="{ selected: isSelected }" @click="toggleSelection">
       <div class="title">{{ title }}</div>
       <img :src="imgSrc" alt="Statistic Image" class="image" />
       <div class="tags">
         <span v-for="(tag, index) in tagList" :key="index" class="tag">{{ tag }}</span>
       </div>
+      <div v-if="isSelected" class="card-checkmark">✔</div>
     </div>
   </transition>
 </template>
@@ -17,8 +18,12 @@ export default {
     title: String,
     imgSrc: String,
     tagList: Array,
+    isSelected: Boolean,
   },
   methods: {
+    toggleSelection() {
+      this.$emit('toggle-selection');
+    },
     beforeEnter(el) {
       el.style.opacity = 0;
       el.style.transform = 'translateY(40px)';
@@ -53,7 +58,7 @@ export default {
   flex-direction: column;
   height: 325px;
   /* width: 303px; */
-  opacity: 0;
+  /* opacity: 0; */
 }
 
 .statistic-card:hover {
@@ -118,5 +123,19 @@ export default {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(40px);
+}
+
+.card-checkmark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: #1e90ff;
+  color: white;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 </style>

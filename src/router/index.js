@@ -10,10 +10,18 @@ import TextAnalyzer from '@/components/TextAnalyzer.vue'
 import ChartConverter from '@/components/ChartConverter.vue'
 import demo from '@/views/demo.vue'
 import streamChat from '@/views/streamChat.vue'
+import CardsSelected from '@/views/CardsSelected.vue';
+import ReportResult from '@/views/ReportResult.vue'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
   routes: [
+    { path: '/CardsSelected', name: 'CardsSelected', component: CardsSelected },
+    {
+      path: '/ReportResult',
+      name: 'ReportResult',
+      component: ReportResult
+    },
     {
       path: '/streamChat',
       name: 'streamChat',
@@ -35,6 +43,7 @@ const router = createRouter({
     },
     {
       path: '/FinancialDashBoard',
+      name: 'FinancialDashBoard',
       component: FinancialDashboard
     },
     {
@@ -47,7 +56,9 @@ const router = createRouter({
     },
     {
       path: '/ReportDetail',
+      name: 'ReportDetail',
       component:ReportDetail,
+      props: true,
       redirect: { name: 'TextAnalyzer' },  // 默认进入AI解析页面
       children: [
         {
